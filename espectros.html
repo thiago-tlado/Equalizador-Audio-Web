@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>PDS</title>
+    <link rel="stylesheet" href="estilo.css?v=1.75">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="topnav">
+        <a href="index.html">Equalizador</a>
+        <a href="espectros.html">Espectros</a>
+    </div>
+    <div id="mainWrapper">
+        <div class="container">  
+            <h2>Sinal de teste</h2>
+            <label>Freq. Senoide <input type="number" value="10" id="freq"></label>
+            <label>Freq. Amostras <input type="number" value="300" id="tx"></label> 
+            <label>Tempo Teste<input type="number" value="1" id="tempo"></label>
+            <br><br>
+            <label>Freq. Senoide 2 para soma:
+                <input type="number" value="30" id="freq2">
+            </label>
+            <br><br>
+            <button id="testeBtn" class="btn-discreto">TESTE SENOIDE</button> 
+        </div>
+        <div class="container"> 
+            <h2>Blocos para FFT</h2>
+            <label>Tamanho do bloco:
+                <select id="windowSelect">
+                    <option value="256">256</option>
+                    <option value="512">512</option>
+                    <option value="1024">1024</option>
+                    <option value="2048" selected>2048</option>
+                    <option value="4096">4096</option>
+                </select> (Hann com sobreposição de 50%)
+            </label>   
+        </div>
+        <div class="container"> 
+            <h2>Captura de Áudio</h2>   
+            <input type="file" id="audioFile" name="audioFile" accept="audio/*" />
+            <br><br>
+            <button id="recordBtn">INICIAR GRAVAÇÃO</button>
+            <div id="status"></div> 
+            <div id="timerDisplay" class="timer-display"></div>            
+        </div>
+
+        <div id="info">Equalizador iniciado...</div>
+
+        <div class="container">
+            <button id="addBandsBtn" class="btn-discreto">Adicionar Bandas</button>
+            <div id="bandsContainer"></div>
+            <button id="equalizeBtn">EQUALIZAR</button>
+        </div>
+        <div class="container">
+            <div id="audioInfo" class="audio-info-box">
+                <div id="audioInfoContent">
+                    <em>Nenhuma gravação realizada.</em>
+                </div>
+            </div>
+            <div class="audio-info-box">
+                <div id="calcInfoContent">
+                    <em>Sem processamento</em>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <h3>Sinal Original</h3>
+            <canvas id="audioChart" class="Chart" width="600"></canvas>
+        </div>
+        <div class="container">
+            <h3>Espectros Originais</h3>
+            <canvas id="fftChart" class="Chart" width="600"></canvas>
+        </div>
+        <div class="container">
+            <h3>Espectros Equalizados</h3>
+            <canvas id="equalizadoChart" class="Chart" width="600"></canvas>
+        </div>
+        <div class="container">
+            <h3>Espectros Bilaterais Equalizados</h3>
+            <canvas id="bilateralChart" class="Chart" width="600"></canvas>
+        </div>
+        <div class="container">
+            <h3>Sinal Reconstruído</h3>
+            <canvas id="reconstruidoChart" class="Chart" width="600"></canvas>
+        </div>
+    </div>
+    <script src="script.js?v=1.72"></script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equalizador Web</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .topnav {
+            width: 100%;
+            background-color: #4c729a;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+        }
+        .topnav a {
+            float: left;
+            display: block;
+            color: #fff;
+            padding: 16px 24px;
+            text-decoration: none;
+            font-size: 18px;
+            transition: background 0.2s;
+        }
+        .topnav a:hover {
+            background-color: #35516a;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: auto; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; background: #f5f5f5;
+            text-align: center;
+            margin-bottom: 40px;
+            padding-top: 56px; /* espaço para o menu fixo */
+        }
+        .container {
+            width: 90%; max-width: 600px; margin-top: 40px; padding: 20px;
+            background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        input[type="file"], button {
+            background-color: #4c729a9d; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px;
+            margin: auto;
+            margin-bottom: 5px;
+            cursor: pointer;
+            max-width:80%;;
+        }
+        input[type="file"]:hover, button:hover {
+            transform: scale(1.04);
+        }
+        button:disabled, input[type="file"]:disabled {
+            background-color: #9f9f9f;
+            cursor: not-allowed;
+            transform: none;
+        }
+        input[type="number"] {
+            width: 60px; margin: 0 5px; padding: 5px;
+            text-align: center;
+        }
+        .banda {
+            margin: 5px 0;
+        }
+        canvas {
+            width: 90% !important; height: 300px !important;
+        }
+        audio {
+            width:100%; margin-bottom:20px
+        }
+        @media (max-width: 600px) {
+            .container { padding: 10px; margin-top: 10px; margin-bottom: 10px;}
+            canvas { height: 200px !important; }
+            body { margin-bottom: 10px;}
+            .topnav a { padding: 12px 10px; font-size: 16px; }
+            body { padding-top: 44px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topnav">
+        <a href="index.html">Equalizador</a>
+        <a href="espectros.html">Espectros</a>
+    </div>
+    <div class="container">
+        <h1>Equalizador Web</h1>
+    </div>
+    <div class="container">
+        <h3>Amostragem do novo áudio</h3>     
+        <label>Pontos no gráfico<input type="number" value="3000" id="pontosGrafico"></label> 
+        <button id="pontosBtn">Visualizar</button>
+        <br>
+        <label>Frequência de Amostragem<input type="number" value="44100" id="amostragem"></label>
+        <h3>Configuração das Bandas de Frequência</h3>
+        <button id="addBandaBtn">Adicionar Banda</button>
+        <div id="divBandas"></div>
+        <button id="equalizeBtn">EQUALIZAR</button>
+    </div>
+    <div class="container">
+        <h2>Análise de Áudios</h2>
+        <a href="acustico.mp3" download>
+            <button>⬇️ Baixar áudio de exemplo</button>
+        </a><br><br>
+        <input type="file" id="audioInput" accept="audio/*">
+        <audio id="audioPlayer1" controls style="display:none;"></audio>
+        <canvas id="audioChart1"></canvas>
+        <audio id="audioPlayer2" controls style="display:none;"></audio>
+        <canvas id="audioChart2"></canvas>
+    </div>
+    <script>
+        const equalizeBtn = document.getElementById('equalizeBtn');
+        const audioInput = document.getElementById('audioInput');
+        const ctx1 = document.getElementById('audioChart1').getContext('2d');
+        const ctx2 = document.getElementById('audioChart2').getContext('2d');
+        const audioPlayer1 = document.getElementById('audioPlayer1');
+        const audioPlayer2 = document.getElementById('audioPlayer2');
+        const addBandaBtn = document.getElementById('addBandaBtn');
+        const pontosBtn = document.getElementById('pontosBtn');
+
+        let rate = 44100;
+        let samples = [0];
+        let samplesEqualizados = [0];
+        let chart1;
+        let chart2;
+        let file;
+
+        function plotarGrafico(ctx, dados, chartRef) {
+            if (chartRef) chartRef.destroy();
+            const plots = parseInt(document.getElementById('pontosGrafico').value) || 3000;
+            console.log('Total de amostras:', dados.length);
+
+            const step = Math.max(1, Math.floor(dados.length / plots));
+            const sampledData = [];
+            const labels = [];
+            let maxVal = 0;
+            let minVal = 0;
+
+            for (let i = 0; i < dados.length; i += step) {
+                sampledData.push(dados[i]);  
+                labels.push(i);
+                if (dados[i] > maxVal) maxVal = dados[i];
+                if (dados[i] < minVal) minVal = dados[i];
+            }   
+
+            const config = {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Amostras de Áudio',
+                        data: sampledData,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: { responsive: true,
+                    scales: {
+                        x: { ticks: {autoSkip: true, maxTicksLimit: 10} },
+                        y: { min: minVal * 1.1, max: maxVal * 1.1 }
+                    }
+                }
+            };
+
+            return new Chart(ctx, config);
+        }
+
+        async function coletarBandas() {
+            const bandas = [];
+            const bandaDivs = document.querySelectorAll('.banda');
+
+            bandaDivs.forEach(div => {
+                const inicio = parseFloat(div.querySelector('.ini').value);
+                const fim = parseFloat(div.querySelector('.fim').value);
+                const ganho = parseFloat(div.querySelector('.ganho').value);
+                bandas.push({ inicio, fim, ganho });
+            });
+            return bandas;
+        }
+
+        async function btnStatus(state) {
+            const btns = document.querySelectorAll('button');
+            btns.forEach(b => b.disabled = state);
+            audioInput.disabled = state;
+        }
+
+        async function processarAudio() {
+            const t0 = performance.now();
+            await btnStatus(true);
+            const bandas = await coletarBandas();
+
+            await fetch('start.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dados: samples, rate: rate, bandas: bandas })
+            })
+            .then(response => response.json())
+            .then(async json => { 
+                console.log('Successo:', json);
+                samplesEqualizados = json.dados;
+                chart2 = plotarGrafico(ctx2, samplesEqualizados, chart2);
+                criarAudio(samplesEqualizados);
+            })
+            .catch(error => { console.error('Error:', error); });
+            await btnStatus(false);
+            const tempo = ((performance.now() - t0) / 1000).toFixed(3);
+            console.log('Duração do processamento:', tempo, 'segundos');
+
+            alert(`Processamento concluído em ${tempo} segundos.
+                O áudio original está em uma frequência de amostragem de ${rate} Hz.\n
+                O áudio equalizado foi gerado com bandas e amostragem escolhidas.`);
+        }
+
+        audioInput.addEventListener('change', async (event) => {
+            file = event.target.files[0];
+            if (!file) return;
+
+            audioPlayer1.style.display = 'block';
+            audioPlayer1.src = URL.createObjectURL(file);
+            audioPlayer1.load();
+
+            const arrayBuffer = await file.arrayBuffer();
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            samples = audioBuffer.getChannelData(0);  
+            rate = audioBuffer.sampleRate;     
+
+            chart2 = plotarGrafico(ctx2, [0], chart2);
+            chart1 = plotarGrafico(ctx1, samples, chart1);
+            await processarAudio();
+        });
+
+        addBandaBtn.addEventListener('click', () => {
+            const divBandas = document.getElementById('divBandas');
+            const bandaDiv = document.createElement('div');
+            bandaDiv.className = 'banda';
+            bandaDiv.innerHTML = `
+                <label>Início<input type="number" value="20" class="ini" step="1"></label>
+                <label>Fim<input type="number" value="80" class="fim" step="1"></label>
+                <label>Ganho<input type="number" value="1" class="ganho" step="0.1"></label>
+                <button class="remove">Remover</button>
+            `;
+
+            divBandas.appendChild(bandaDiv);
+            const removeBtn = bandaDiv.querySelector('.remove');
+
+            removeBtn.addEventListener('click', () => {
+                divBandas.removeChild(bandaDiv);
+            });
+        });
+
+        equalizeBtn.addEventListener('click', async () => {
+            console.log('Botão EQUALIZAR clicado');
+            if (!file) {
+                alert('Por favor, carregue um arquivo de áudio primeiro.');
+                return;
+            } 
+     
+            audioPlayer2.style.display = 'none';
+            chart2 = plotarGrafico(ctx2, [0], chart2);
+            await processarAudio();
+        });
+
+        pontosBtn.addEventListener('click', () => {
+            chart1 = plotarGrafico(ctx1, samples, chart1);
+            chart2 = plotarGrafico(ctx2, samplesEqualizados, chart2);
+        });
+
+        function criarAudio(dados) {
+            sampleRate = parseInt(document.getElementById('amostragem').value) || 44100;
+
+            function floatTo16BitPCM(input) {
+                const output = new DataView(new ArrayBuffer(input.length * 2));
+                for (let i = 0; i < input.length; i++) {
+                    let s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+                return output;
+            }
+
+            function encodeWAV(samples, sampleRate) {
+                const buffer = new ArrayBuffer(44 + samples.length * 2);
+                const view = new DataView(buffer);
+                function writeString(view, offset, string) {
+                    for (let i = 0; i < string.length; i++) 
+                        view.setUint8(offset + i, string.charCodeAt(i));                   
+                }
+
+                writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + samples.length * 2, true);
+                writeString(view, 8, 'WAVE');
+                writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeString(view, 36, 'data');
+                view.setUint32(40, samples.length * 2, true);
+                const pcm = floatTo16BitPCM(samples);
+
+                for (let i = 0; i < samples.length; i++) 
+                    view.setInt16(44 + i * 2, pcm.getInt16(i * 2, true), true);                
+                return buffer;
+            }
+
+            const wavBuffer = encodeWAV(dados, sampleRate);
+            const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            audioPlayer2.src = url;
+            audioPlayer2.style.display = 'block';
+            audioPlayer2.load();
+        }
+
+        pontosBtn.click();
+    </script>
+</body>
+</html>
